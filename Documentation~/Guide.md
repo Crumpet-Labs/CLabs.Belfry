@@ -37,11 +37,11 @@ IPealFactory (singleton)
 All Belfry messages must be `struct` types. They're passed by `in` reference to avoid allocations.
 
 ```csharp
-public readonly struct PlayerDied {
+public readonly struct PlayerDiedMessage {
     public readonly int Owner;
     public readonly string CauseOfDeath;
 
-    public PlayerDied(int owner, string causeOfDeath) {
+    public PlayerDiedMessage(int owner, string causeOfDeath) {
         Owner = owner;
         CauseOfDeath = causeOfDeath;
     }
@@ -63,19 +63,36 @@ public sealed partial class GameManager : MonoBehaviour {
     [Inject] private IBellTower i_Tower;
 
     public void EndRound() {
-        i_Tower.Rope(GetType()).Ring(new RoundEnded(roundNumber: 3, winner: "Blue"));
+        var message = new RoundEnded(roundNumber: 3, winner: "Blue");
+        i_Tower.Rope(k.Towers.GameManager).Ring(in message);
     }
 }
 ```
 
-The channel key is typically `typeof(ThePublishingClass)` but can be any object — a `string`, an enum, a `ScriptableObject` reference. The rope combines the key with `typeof(T)` to form a `BellChannel(scope, messageType)` lookup, so the same rope can carry multiple message types and listeners can pick out specific ones.
+The channel key can be anything, but typically it's good practice to keep a static class with constant values in it inside a shared Messages/ directory
+
+I've found the best approach tto be something like
+```csharp
+public static class k {
+    public static class Towers {
+        public const int GameManager = 1;
+    }
+}
+```
+
+this means anywhere `k.Towers.GameManager` you can access it. 
+
+Having said this it can be any object — a `string`, an enum, a `ScriptableObject`, Type. 
+The rope combines the key with `typeof(T)` to form a `BellChannel(scope, messageType)` lookup, so the same rope can carry multiple message types and listeners can pick out specific ones.
 
 ### Async ringing
 
 `RingAsync` enqueues the message through a peal so listeners are invoked off the calling frame, returning a `Ticket` that completes after delivery:
 
 ```csharp
-await i_Tower.Rope(typeof(SaveSystem)).RingAsync(new StateFlushed(slotId: "slot1"), priority: 10);
+
+var message = new StateFlushedMessage(slotId: "slot1");
+await i_Tower.Rope(k.Towers.SaveSystem).RingAsync(in message, priority: 10);
 ```
 
 Async ringing requires the rope to have been built with a `IPealConfig` (see *Peals* below).
@@ -87,13 +104,15 @@ Call `Rope(key).On<T>(handler)` and hold the returned `IDisposable`:
 ```csharp
 public sealed partial class ScoreTracker : MonoBehaviour {
     [Inject] private IBellTower i_Tower;
+    
     private IDisposable m_RoundEnded;
     private IDisposable m_PlayerDied;
 
     private void OnEnable() {
-        var rope = i_Tower.Rope(typeof(GameManager));
-        m_RoundEnded = rope.On<RoundEnded>(OnRoundEnded);
-        m_PlayerDied = rope.On<PlayerDied>(OnPlayerDied);
+        var rope = i_Tower.Rope(k.Towers.GameManager);
+        
+        m_RoundEnded = rope.On<RoundEndedMessage>(OnRoundEnded);
+        m_PlayerDied = rope.On<PlayerDiedMessage>(OnPlayerDied);
     }
 
     private void OnDisable() {
@@ -101,11 +120,11 @@ public sealed partial class ScoreTracker : MonoBehaviour {
         m_PlayerDied?.Dispose();
     }
 
-    private void OnRoundEnded(in RoundEnded msg) {
+    private void OnRoundEnded(in RoundEndedMessage msg) {
         Debug.Log($"Round {msg.RoundNumber} won by {msg.Winner}");
     }
 
-    private void OnPlayerDied(in PlayerDied msg) {
+    private void OnPlayerDied(in PlayerDiedMessage msg) {
         Debug.Log($"{msg.Owner} died: {msg.CauseOfDeath}");
     }
 }
@@ -126,8 +145,8 @@ This keeps subscriptions tied to Unity's enable/disable lifecycle and avoids dan
 
 ```csharp
 m_Subscription = rope.On(
-    new BellListener<RoundEnded>(OnRoundEnded),
-    new BellListener<PlayerDied>(OnPlayerDied)
+    new BellListener<RoundEndedMessage>(OnRoundEnded),
+    new BellListener<PlayerDiedMessage>(OnPlayerDied)
 );
 ```
 
@@ -135,7 +154,7 @@ m_Subscription = rope.On(
 
 The routing pair is `BellChannel(object scope, Type messageType)`:
 
-- **scope** — the publisher identity, typically a `Type` like `typeof(CombatSystem)`
+- **scope** — the publisher identity, typically a `Type` like `k.Towers.CombatSystem`
 - **messageType** — the message struct type, derived from the generic parameter on `Ring<T>` / `On<T>`
 
 So:
@@ -163,16 +182,19 @@ public sealed class SaveMediator {
             strategy: new FairRoundRobinRingOrder(),
             criticalPriorities: new[] { 100 }
         );
-        m_SaveRope = tower.Rope(typeof(SaveMediator), pealConfig);
+        
+        m_SaveRope = tower.Rope(k.Towers.SaveMediator, pealConfig);
     }
 
     public void OnStateChanged() {
-        m_SaveRope.RingAsync(new SaveRequested(reason: "auto"), priority: 5);
+        var message = new SaveRequestedMessage(reason: "auto");
+        m_SaveRope.RingAsync(in message, priority: 5);
     }
 
     public void OnCriticalShutdown() {
         // Priority 100 is in the critical set — fires immediately, skipping the queue.
-        m_SaveRope.RingAsync(new SaveRequested(reason: "shutdown"), priority: 100);
+        var message = new SaveRequestedMessage(reason: "shutdown");
+        m_SaveRope.RingAsync(in message, priority: 100);
     }
 }
 ```
@@ -239,7 +261,7 @@ public sealed class WeightedRingOrder : IRingOrder {
 
 ## Bridge pattern
 
-Belfry doesn't depend on any other CLabs package. The intended ecosystem has each domain package exposing local `Action<>` events, and a small bridge assembly that translates those into Belfry messages. This keeps every domain package independent — none of them references `CLabs.Belfry` in its own asmdef.
+Belfry depends on Tickets to function correctly. The intended ecosystem has each domain package exposing local `Action<>` events, and a small bridge assembly that translates those into Belfry messages. This keeps every domain package independent — none of them references `CLabs.Belfry` in its own asmdef.
 
 Each bridge follows the same shape:
 

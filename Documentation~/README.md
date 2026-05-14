@@ -57,7 +57,8 @@ public sealed partial class CombatSystem : MonoBehaviour {
     [Inject] private IBellTower i_Tower;
 
     public void DefeatEnemy(int entityId, int xp) {
-        i_Tower.Rope(GetType()).Ring(new EnemyDefeated(entityId, xp));
+        var message = new EnemyDefeatedMessage(entityId, xp);
+        i_Tower.Rope(k.Towers.CombatSystem).Ring();
     }
 }
 ```
@@ -76,15 +77,15 @@ public sealed partial class XPListener : MonoBehaviour {
 
     private void OnEnable() {
         m_Subscription = i_Tower
-            .Rope(typeof(CombatSystem))
-            .On<EnemyDefeated>(OnEnemyDefeated);
+            .Rope(k.Towers.CombatSystem)
+            .On<EnemyDefeatedMessage>(OnEnemyDefeated);
     }
 
     private void OnDisable() {
         m_Subscription?.Dispose();
     }
 
-    private void OnEnemyDefeated(in EnemyDefeated msg) {
+    private void OnEnemyDefeated(in EnemyDefeatedMessage msg) {
         Debug.Log($"Enemy {msg.EntityId} defeated — +{msg.XPReward} XP");
     }
 }
@@ -97,9 +98,15 @@ using Buttr.Core;
 using CLabs.Belfry;
 
 namespace YourProject {
-    public static class MessagingPackage {
-        public static IConfigurableCollection UseMessaging(this ApplicationBuilder builder) {
-            return builder.UseBelfry();
+    public sealed class Program {
+        public static ApplicationContainer Main() => Main(CMDArgs.Get());
+        
+        private static ApplicationContainer Main(Dictionary<string, string> args) {
+            var builder = new ApplicationBuilder();
+            
+            builder.UseBelfry();
+            
+            return builder.Build();
         }
     }
 }
