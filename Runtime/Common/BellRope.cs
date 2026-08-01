@@ -13,11 +13,13 @@ namespace CLabs.Belfry {
             m_Peal = peal;
         }
 
-        public void RingBell<T>(in T message) where T : struct
-            => m_Belfry.PublishBell(new BellChannel(m_Key, typeof(T)), in message);
+        public void RingBell<T>(in T message) where T : struct {
+            m_Belfry.PublishBell(new BellChannel(m_Key, typeof(T)), in message);
+        }
 
-        public IDisposable OnBell<T>(BellMessage<T> handler, int priority = 0) where T : struct
-            => m_Belfry.SubscribeBell(new BellChannel(m_Key, typeof(T)), handler, priority);
+        public IDisposable OnBell<T>(BellMessage<T> handler, int priority = 0) where T : struct {
+            return m_Belfry.SubscribeBell(new BellChannel(m_Key, typeof(T)), handler, priority);
+        }
 
         public IDisposable OnBell(params IBellListener[] listeners) {
             var bindings = new BellBinding[listeners.Length];
@@ -59,8 +61,9 @@ namespace CLabs.Belfry {
             return tcs.Task;
         }
 
-        public IDisposable OnToll<T>(TollMessage<T> handler, int priority = 0) where T : struct
-            => m_Belfry.SubscribeToll(new BellChannel(m_Key, typeof(T)), handler, priority);
+        public IDisposable OnToll<T>(TollMessage<T> handler, int priority = 0) where T : struct {
+            return m_Belfry.SubscribeToll(new BellChannel(m_Key, typeof(T)), handler, priority);
+        }
 
         public IDisposable OnToll(params ITollListener[] listeners) {
             var bindings = new BellBinding[listeners.Length];

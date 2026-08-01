@@ -277,8 +277,8 @@ Intended bridge ecosystem (forthcoming — not all shipped yet):
 |---|---|---|
 | `dough-belfry` | Dough | XP gained, level up, milestone reached |
 | `glaze-belfry` | Glaze | Effect applied, removed, ticked |
-| `drip-belfry` | Drip | Item equipped, unequipped |
-| `freezer-belfry` | Freezer | Item added, removed, moved, stack changed |
+| `equipment-belfry` | Equipment | Item equipped, unequipped |
+| `inventory-belfry` | Inventory | Item added, removed, moved, stack changed |
 | `mint-belfry` | Mint | Balance changed, transaction completed |
 | `spice-belfry` | Spice | Ability activated, cooldown started/ended |
 | `temper-belfry` | Temper | State entered, exited, transition occurred |

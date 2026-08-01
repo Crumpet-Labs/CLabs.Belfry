@@ -63,6 +63,14 @@ References: `Buttr.Core`, `CLabs.Tickets`
   - `bool TryDequeue(out Func<CancellationToken, Ticket> action)`
   - `void Clear()`
 
+### `Runtime/Common/ListenerLane.cs`
+- **class sealed ListenerLane**
+- **class static ListenerLaneExtensions**
+  - `void Insert(BellBinding binding)`
+  - `void Remove(BellBinding binding)`
+  - `BellBinding[] Snapshot()`
+  - `int ComparePriority(this BellBinding a, BellBinding b)`
+
 ### `Runtime/Common/Peal.cs`
 - **class sealed Peal** : IPeal, IDisposable
   - `Peal(IPealConfig config)`
@@ -102,7 +110,7 @@ References: `Buttr.Core`, `CLabs.Tickets`
   - `Ticket PublishToll<T>(BellChannel channel, T message, CancellationToken ct)`
   - `IReadOnlyList<BellBinding> GetTollBindings(BellChannel channel)`
   - `void Dispose()`
-  - `void InsertSorted(this Dictionary<BellChannel, List<BellBinding>> lane, BellBinding binding)`
+  - `void InsertSorted(this Dictionary<BellChannel, ListenerLane> lanes, BellBinding binding)`
 
 ### `Runtime/Components/BellTower.cs`
 - **class sealed BellTower** : IBellTower
